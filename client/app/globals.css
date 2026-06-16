@@ -67,9 +67,9 @@
   --background: var(--aged-parchment);
   --foreground: #000000;
   --card: var(--aged-parchment);
-  --card-foreground: var(--deep-parchment);
+  --card-foreground: #000000;
   --popover: var(--aged-parchment);
-  --popover-foreground: var(--deep-parchment);
+  --popover-foreground: #000000;
   --primary: #9c6240;
   --primary-foreground: var(--aged-parchment);
   --secondary: var(--monastery-brown);
@@ -89,13 +89,13 @@
   --chart-4: var(--aged-parchment);
   --chart-5: var(--crimson-seal);
   --radius: 0.625rem;
-  --sidebar: var(--deep-parchment);
+  --sidebar: var(--royal-indigo);
   --sidebar-foreground: var(--aged-parchment);
   --sidebar-primary: #9c6240;
-  --sidebar-primary-foreground: var(--deep-parchment);
-  --sidebar-accent: var(--monastery-brown);
+  --sidebar-primary-foreground: var(--aged-parchment);
+  --sidebar-accent: color-mix(in srgb, white 12%, var(--royal-indigo));
   --sidebar-accent-foreground: var(--aged-parchment);
-  --sidebar-border: color-mix(in srgb, var(--sacred-gold) 35%, transparent);
+  --sidebar-border: color-mix(in srgb, var(--sacred-gold) 30%, transparent);
   --sidebar-ring: var(--sacred-gold);
 }
 
@@ -124,11 +124,11 @@
   --chart-3: var(--royal-indigo);
   --chart-4: var(--aged-parchment);
   --chart-5: var(--crimson-seal);
-  --sidebar: #1f1009;
+  --sidebar: var(--royal-indigo);
   --sidebar-foreground: var(--aged-parchment);
   --sidebar-primary: #9c6240;
-  --sidebar-primary-foreground: var(--deep-parchment);
-  --sidebar-accent: #5c3018;
+  --sidebar-primary-foreground: var(--aged-parchment);
+  --sidebar-accent: color-mix(in srgb, white 12%, var(--royal-indigo));
   --sidebar-accent-foreground: var(--aged-parchment);
   --sidebar-border: color-mix(in srgb, var(--sacred-gold) 30%, transparent);
   --sidebar-ring: var(--sacred-gold);
@@ -138,10 +138,12 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    color-scheme: light;
+  }
+  body {
+    @apply bg-background;
+    color: #000000;
   }
 }
