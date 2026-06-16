@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VerseCard } from "@/app/(home)/_components/verse-card";
@@ -78,18 +78,6 @@ export function ChatInterface() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center gap-3 border-b border-sacred-gold/20 bg-primary px-5 py-4">
-        <div className="flex size-10 items-center justify-center rounded-lg bg-sacred-gold/20">
-          <BookOpen className="size-5 text-sacred-gold" />
-        </div>
-        <div>
-          <h1 className="text-lg font-bold text-primary-foreground">Daily Bread AI</h1>
-          <p className="text-sm text-primary-foreground/80">
-            Search the Word with AI
-          </p>
-        </div>
-      </header>
-
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8">
         {messages.map((message) => (
           <div
@@ -123,7 +111,7 @@ export function ChatInterface() {
 
       <form
         onSubmit={handleSubmit}
-        className="shrink-0 space-y-3 border-t border-sacred-gold/20 bg-background px-5 py-4 sm:px-8"
+        className="shrink-0 space-y-3 border-t border-sacred-gold/20 bg-background px-5 py-4 sm:px-8 flex space-x-2"
       >
         <Input
           value={input}

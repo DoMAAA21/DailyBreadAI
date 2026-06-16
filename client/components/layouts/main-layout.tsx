@@ -84,6 +84,21 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+function ContentHeader({ onMenuOpen }: { onMenuOpen: () => void }) {
+  return (
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-sacred-gold/20 bg-primary px-5 py-4">
+      <button
+        type="button"
+        aria-label="Open menu"
+        onClick={onMenuOpen}
+        className="inline-flex size-10 items-center justify-center rounded-lg text-primary-foreground hover:bg-sacred-gold/20 md:hidden"
+      >
+        <Menu className="size-5" />
+      </button>
+    </header>
+  );
+}
+
 export function MainLayout({ children }: MainLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
@@ -110,31 +125,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-sacred-gold/20 bg-background px-4 py-3 md:hidden">
-          <div className="flex items-center gap-2">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-sacred-gold/20">
-              <BookOpen className="size-4 text-sacred-gold" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-foreground">
-                {appConfig.name}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {appConfig.tagline}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            aria-label={drawerOpen ? "Close menu" : "Open menu"}
-            aria-expanded={drawerOpen}
-            onClick={() => setDrawerOpen((open) => !open)}
-            className="inline-flex size-10 items-center justify-center rounded-lg text-foreground hover:bg-black/5"
-          >
-            {drawerOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
-        </header>
+        <ContentHeader onMenuOpen={() => setDrawerOpen(true)} />
 
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
           {children}
