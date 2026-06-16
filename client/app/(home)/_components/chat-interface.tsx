@@ -72,71 +72,67 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-background p-4 sm:p-6">
-      <div className="flex h-[min(720px,calc(100vh-3rem))] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-sacred-gold/20 bg-aged-parchment shadow-2xl">
-        <header className="flex items-center gap-3 bg-primary px-5 py-4">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-sacred-gold/20">
-            <BookOpen className="size-5 text-sacred-gold" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-primary-foreground">Rhema</h1>
-            <p className="text-sm text-primary-foreground/80">
-              Search the Word with AI
-            </p>
-          </div>
-        </header>
-
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex flex-col gap-3",
-                  message.role === "user" ? "items-end" : "items-start"
-                )}
-              >
-                {message.role === "user" ? (
-                  <div className="max-w-[85%] rounded-2xl rounded-br-md bg-monastery-brown px-4 py-3 text-sm leading-relaxed text-aged-parchment">
-                    {message.content}
-                  </div>
-                ) : (
-                  <div className="w-full space-y-3">
-                    <div className="max-w-[95%] text-sm leading-relaxed text-black">
-                      {message.content}
-                    </div>
-                    {message.verse ? (
-                      <VerseCard
-                        text={message.verse.text}
-                        reference={message.verse.reference}
-                      />
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-3 border-t border-sacred-gold/20 bg-aged-parchment px-5 py-4"
-          >
-            <Input
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="What does the Bible say about peace?"
-              className="h-11 border-deep-parchment/20 bg-white text-black placeholder:text-muted-foreground"
-            />
-            <Button
-              type="submit"
-              className="h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Search className="size-4" />
-              Search Scripture
-            </Button>
-          </form>
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
+      <header className="flex shrink-0 items-center gap-3 border-b border-sacred-gold/20 bg-primary px-5 py-4">
+        <div className="flex size-10 items-center justify-center rounded-lg bg-sacred-gold/20">
+          <BookOpen className="size-5 text-sacred-gold" />
         </div>
+        <div>
+          <h1 className="text-lg font-bold text-primary-foreground">Rhema</h1>
+          <p className="text-sm text-primary-foreground/80">
+            Search the Word with AI
+          </p>
+        </div>
+      </header>
+
+      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-8">
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={cn(
+              "flex flex-col gap-3",
+              message.role === "user" ? "items-end" : "items-start"
+            )}
+          >
+            {message.role === "user" ? (
+              <div className="max-w-[85%] rounded-2xl rounded-br-md bg-monastery-brown px-4 py-3 text-sm leading-relaxed text-aged-parchment sm:max-w-xl">
+                {message.content}
+              </div>
+            ) : (
+              <div className="w-full max-w-3xl space-y-3">
+                <div className="text-sm leading-relaxed text-black">
+                  {message.content}
+                </div>
+                {message.verse ? (
+                  <VerseCard
+                    text={message.verse.text}
+                    reference={message.verse.reference}
+                  />
+                ) : null}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
+
+      <form
+        onSubmit={handleSubmit}
+        className="shrink-0 space-y-3 border-t border-sacred-gold/20 bg-background px-5 py-4 sm:px-8"
+      >
+        <Input
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="What does the Bible say about peace?"
+          className="h-11 border-deep-parchment/20 bg-white text-black placeholder:text-muted-foreground"
+        />
+        <Button
+          type="submit"
+          className="h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto sm:min-w-48"
+        >
+          <Search className="size-4" />
+          Search Scripture
+        </Button>
+      </form>
     </div>
   );
 }
