@@ -73,7 +73,6 @@ export DATABASE_URL="postgresql://user:password@localhost:5432/dailybread"
 export OPENAI_API_KEY="your-key-here"
 
 uvicorn main:app --reload
-```
 
 The API will be available at `http://localhost:8000`.
 
