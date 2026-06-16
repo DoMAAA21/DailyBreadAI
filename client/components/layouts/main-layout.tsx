@@ -104,12 +104,12 @@ export function MainLayout({ children }: MainLayoutProps) {
   }, [drawerOpen]);
 
   return (
-    <div className="flex min-h-full flex-1 bg-background">
+    <div className="flex h-dvh min-h-0 bg-background">
       <aside className="hidden w-72 shrink-0 flex-col border-r border-sidebar-border bg-accent text-sidebar-foreground md:flex">
         <SidebarContent />
       </aside>
 
-      <div className="flex min-h-full min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-sacred-gold/20 bg-background px-4 py-3 md:hidden">
           <div className="flex items-center gap-2">
             <div className="flex size-9 items-center justify-center rounded-lg bg-sacred-gold/20">
@@ -136,7 +136,9 @@ export function MainLayout({ children }: MainLayoutProps) {
           </button>
         </header>
 
-        <main className="flex min-h-0 flex-1 flex-col bg-background">{children}</main>
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+          {children}
+        </main>
       </div>
 
       <div

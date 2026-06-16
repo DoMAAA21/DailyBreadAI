@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,11 @@ const MOCK_MESSAGES: Message[] = [
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
   const [input, setInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,20 +77,20 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col bg-background">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <header className="flex shrink-0 items-center gap-3 border-b border-sacred-gold/20 bg-primary px-5 py-4">
         <div className="flex size-10 items-center justify-center rounded-lg bg-sacred-gold/20">
           <BookOpen className="size-5 text-sacred-gold" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-primary-foreground">Rhema</h1>
+          <h1 className="text-lg font-bold text-primary-foreground">Daily Bread AI</h1>
           <p className="text-sm text-primary-foreground/80">
             Search the Word with AI
           </p>
         </div>
       </header>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-8">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -113,6 +118,7 @@ export function ChatInterface() {
             )}
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       <form
