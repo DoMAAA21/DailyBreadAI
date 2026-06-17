@@ -4,3 +4,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:3000")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/dailybread",
+)
+
+# Local AI via Ollama — no OpenAI key required
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
+OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
