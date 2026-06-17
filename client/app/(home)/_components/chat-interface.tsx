@@ -8,14 +8,16 @@ import { VerseCard } from "@/app/(home)/_components/verse-card";
 import { cn } from "@/lib/utils";
 import { http } from "@/utils/http";
 
+type VerseSource = {
+  text: string;
+  reference: string;
+};
+
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  verse?: {
-    text: string;
-    reference: string;
-  };
+  sources?: VerseSource[];
 };
 
 export function ChatInterface() {
@@ -44,7 +46,10 @@ export function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const { data } = await http.post<{ reply: string }>("/chat", {
+      const { data } = await http.post<{
+        reply: string;
+        sources: VerseSource[];
+      }>("/chat", {
         message: question,
       });
 
@@ -54,6 +59,7 @@ export function ChatInterface() {
           id: crypto.randomUUID(),
           role: "assistant",
           content: data.reply,
+          sources: data.sources?.length ? data.sources : undefined,
         },
       ]);
     } catch {
@@ -96,12 +102,13 @@ export function ChatInterface() {
                 <div className="rounded-2xl rounded-bl-md border border-sacred-gold/20 bg-white px-4 py-3 text-sm leading-relaxed text-black shadow-sm">
                   {message.content}
                 </div>
-                {message.verse ? (
+                {message.sources?.map((source) => (
                   <VerseCard
-                    text={message.verse.text}
-                    reference={message.verse.reference}
+                    key={source.reference}
+                    text={source.text}
+                    reference={source.reference}
                   />
-                ) : null}
+                ))}
               </div>
             )}
           </div>
