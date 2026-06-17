@@ -74,6 +74,7 @@ docker compose up --build -d
 | **API docs** | http://localhost:8000/docs | Swagger UI |
 | **Health** | http://localhost:8000/health | `{"status":"ok"}` |
 | **Postgres** | `localhost:5432` | DB: `dailybread` |
+| **Adminer** | http://localhost:8080 | Web UI for Postgres |
 | **Ollama** | http://localhost:11434 | Local LLM + embeddings |
 
 ### 4. Pull Ollama models (first time only)
@@ -129,6 +130,7 @@ Open http://localhost:3000 in your browser for the app UI.
 | `dailybread-ollama` | `ollama/ollama` | 11434 | Local embeddings + LLM |
 | `dailybread-api` | Built from `./api` | 8000 | FastAPI (hot reload) |
 | `dailybread-client` | Built from `./client` | 3000 | Next.js (hot reload) |
+| `dailybread-adminer` | `adminer` | 8080 | Database web UI |
 
 On first DB start, `docker/init-db.sql` runs:
 
@@ -288,6 +290,101 @@ docker exec dailybread-ollama ollama pull nomic-embed-text
 - `/chat` RAG endpoint
 - Frontend connected to real API
 
+---
+
+## Next: set up the database and ingest Bible text
+
+### 1. Ensure DB + pgvector are running
+
+```bash
+cd /Users/jharold/Projects/DailyBreadAI
+docker compose up -d db
+```
+
+### 2. Create tables (schema)
+
+If you start from a fresh DB volume, `docker/init-db.sql` runs automatically on first boot.
+If you already have a DB volume and want to apply the schema now, run:
+
+```bash
+docker exec -i dailybread-db psql -U postgres -d dailybread < docker/schema.sql
+```
+
+### 3. Ingest a first verse (NIV, John 3:16)
+
+This hits the structured JSON API on `bolls.life` and inserts the verse text into `verses`.
+
+```bash
+docker exec -it dailybread-api python /app/scripts/ingest_bolls_one.py \
+  --translation NIV \
+  --book John \
+  --chapter 3 \
+  --verse 16
+```
+
+### 4. Ingest a whole chapter (NIV, John 3 — all 36 verses)
+
+One API call fetches the entire chapter:
+
+```bash
+docker exec -it dailybread-api python /app/scripts/ingest_bolls_chapter.py \
+  --translation NIV \
+  --book John \
+  --chapter 3
+```
+
+### 5. Verify you have data
+
+```bash
+docker exec -it dailybread-db psql -U postgres -d dailybread -c \
+  "SELECT translation_code, book_num, chapter, verse, left(text, 60) AS text FROM verses WHERE book_num = 43 AND chapter = 3 ORDER BY verse;"
+```
+
+You should see **36 rows** for John 3.
+
+### 6. Automate with a chapter queue (per book or whole Bible)
+
+Bolls does not offer one "whole book" endpoint — ingestion is **one chapter per API call**.
+We generate a queue from `get-books` (book list + chapter counts), then process chapter by chapter.
+
+**Generate catalog + queue for John only (21 chapters):**
+
+```bash
+docker exec -it dailybread-api python /app/scripts/generate_ingest_queue.py \
+  --translation NIV \
+  --book John
+```
+
+**Generate queue for the entire Bible (1,189 chapters for NIV):**
+
+```bash
+docker exec -it dailybread-api python /app/scripts/generate_ingest_queue.py \
+  --translation NIV
+```
+
+Outputs:
+- `api/data/catalog/niv.json` — all 66 books + chapter counts
+- `api/data/queues/niv-john.json` — chapter jobs with `pending` / `done` / `failed` status
+
+**Run the queue (resume-friendly — skips `done` chapters):**
+
+```bash
+docker exec -it dailybread-api python /app/scripts/run_ingest_queue.py \
+  --queue /app/data/queues/niv-john.json
+```
+
+Process only the next 3 chapters (good for testing):
+
+```bash
+docker exec -it dailybread-api python /app/scripts/run_ingest_queue.py \
+  --queue /app/data/queues/niv-john.json \
+  --limit 3
+```
+
+The queue file is updated after each chapter, so you can stop and resume later.
+
+Once that works, the next step is **embedding** (call Ollama embeddings for the stored verse text) and then wiring a `/chat` endpoint that retrieves top-k vectors.
+
 See also:
 - [`docs/local-rag-learning-plan.md`](docs/local-rag-learning-plan.md) — how to build your own RAG chatbot
 - [`docs/bible-data-ingestion-plan.md`](docs/bible-data-ingestion-plan.md) — Bible data pipeline
@@ -317,3 +414,25 @@ Check pgvector:
 ```
 
 You should see `vector` in the list.
+
+---
+
+## Adminer (database web UI)
+
+Start Adminer (or bring up the full stack):
+
+```bash
+docker compose up -d adminer
+```
+
+Open http://localhost:8080 and log in with:
+
+| Field | Value |
+|-------|-------|
+| System | PostgreSQL |
+| Server | `db` |
+| Username | `postgres` |
+| Password | `postgres` |
+| Database | `dailybread` |
+
+Browse the `verses` table to confirm your John 3 data.

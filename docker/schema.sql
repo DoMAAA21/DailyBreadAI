@@ -1,7 +1,12 @@
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Tables for verses + pgvector embeddings
--- (kept inline so a fresh DB volume auto-initializes)
+-- DailyBreadAI schema
+-- Includes:
+-- - translations: which translation we loaded
+-- - books: canonical book number + metadata (Bolls bookid)
+-- - verses: verse text for each translation
+-- - verse_embeddings: pgvector embeddings (created with default dimension 768)
+--
+-- NOTE: If your embedding dimension differs from 768, alter verse_embeddings.embedding
+-- to the correct `vector(<dim>)` before inserting embeddings.
 
 CREATE TABLE IF NOT EXISTS translations (
   code TEXT PRIMARY KEY,
@@ -35,3 +40,4 @@ CREATE TABLE IF NOT EXISTS verse_embeddings (
   embedding vector(768) NOT NULL,
   PRIMARY KEY (verse_id, model)
 );
+
