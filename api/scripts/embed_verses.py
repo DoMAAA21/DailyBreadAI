@@ -2,8 +2,11 @@ import argparse
 import os
 from typing import Optional
 
+import _path  # noqa: F401
 import httpx
 import psycopg2
+
+from app.db import get_connection
 
 
 def to_vector_literal(values: list[float]) -> str:
@@ -102,12 +105,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
 
-    database_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/dailybread",
-    )
-
-    conn = psycopg2.connect(database_url)
+    conn = get_connection()
     conn.autocommit = True
     cur = conn.cursor()
 

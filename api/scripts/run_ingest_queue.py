@@ -1,5 +1,4 @@
 import argparse
-import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +13,7 @@ from bolls_common import (
     upsert_translation_and_book,
     write_queue,
 )
+from app.db import get_connection
 
 
 def chapter_count_for_book(books: list[dict], book_num: int) -> int:
@@ -57,15 +57,10 @@ def main() -> None:
     base_url = payload.get("base_url", "https://bolls.life")
     jobs = payload["jobs"]
 
-    database_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/dailybread",
-    )
-
     books = get_books(base_url, translation)
     book_chapter_counts = {int(b["bookid"]): int(b["chapters"]) for b in books}
 
-    conn = psycopg2.connect(database_url)
+    conn = get_connection()
     conn.autocommit = True
     cur = conn.cursor()
 

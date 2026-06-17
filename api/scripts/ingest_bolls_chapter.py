@@ -1,8 +1,6 @@
 import argparse
 import os
 
-import psycopg2
-
 from bolls_common import (
     find_book,
     get_books,
@@ -10,6 +8,7 @@ from bolls_common import (
     ingest_chapter,
     upsert_translation_and_book,
 )
+from app.db import get_connection
 
 
 def main() -> None:
@@ -22,11 +21,6 @@ def main() -> None:
     parser.add_argument("--base-url", default=os.getenv("BOLLS_BASE_URL", "https://bolls.life"))
     args = parser.parse_args()
 
-    database_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/dailybread",
-    )
-
     books = get_books(args.base_url, args.translation)
     book_match = find_book(books, args.book)
     if not book_match:
@@ -37,7 +31,7 @@ def main() -> None:
     book_num = int(book_match["bookid"])
     chapter_verses = get_chapter(args.base_url, args.translation, book_num, args.chapter)
 
-    conn = psycopg2.connect(database_url)
+    conn = get_connection()
     conn.autocommit = True
     cur = conn.cursor()
 

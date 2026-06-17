@@ -3,6 +3,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+import _path  # noqa: F401
 import httpx
 import psycopg2
 

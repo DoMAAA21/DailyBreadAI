@@ -1,9 +1,9 @@
-import os
 from dataclasses import dataclass
 
 import psycopg2
 
 from app.config import OLLAMA_EMBED_MODEL
+from app.db import get_connection
 from app.services.ollama import embed
 
 
@@ -33,13 +33,9 @@ def _search_verses_sync(
     model: str,
     limit: int,
 ) -> list[RetrievedVerse]:
-    database_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/dailybread",
-    )
     vector_literal = _to_vector_literal(query_vector)
 
-    conn = psycopg2.connect(database_url)
+    conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(

@@ -4,9 +4,12 @@ import os
 import re
 from typing import Any, Optional, Tuple
 
+import _path  # noqa: F401
 import httpx
 import psycopg2
 import psycopg2.extras
+
+from app.db import get_connection
 
 
 def strip_html(s: str) -> str:
@@ -86,12 +89,7 @@ def main() -> None:
     parser.add_argument("--base-url", default=os.getenv("BOLLS_BASE_URL", "https://bolls.life"))
     args = parser.parse_args()
 
-    database_url = os.getenv(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/dailybread",
-    )
-
-    conn = psycopg2.connect(database_url)
+    conn = get_connection()
     conn.autocommit = True
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 

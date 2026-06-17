@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(_ENV_PATH)
 
 CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:3000")
 DATABASE_URL = os.getenv(
