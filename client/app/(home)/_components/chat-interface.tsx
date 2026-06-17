@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VerseCard } from "@/app/(home)/_components/verse-card";
 import { cn } from "@/lib/utils";
+import { http } from "@/utils/http";
 
 type Message = {
   id: string;
@@ -17,37 +18,20 @@ type Message = {
   };
 };
 
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: "1",
-    role: "user",
-    content: "What does the Bible say about peace?",
-  },
-  {
-    id: "2",
-    role: "assistant",
-    content:
-      "Scripture speaks of a peace that comes from God — not as the world gives, but a lasting peace rooted in Christ.",
-    verse: {
-      text: "Peace I leave with you; my peace I give you. I do not give to you as the world gives.",
-      reference: "John 14:27 (NIV)",
-    },
-  },
-];
-
 export function ChatInterface() {
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const question = input.trim();
-    if (!question) return;
+    if (!question || isLoading) return;
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -57,28 +41,44 @@ export function ChatInterface() {
 
     setMessages((current) => [...current, userMessage]);
     setInput("");
+    setIsLoading(true);
 
-    // Placeholder assistant reply until API is wired up
-    setTimeout(() => {
+    try {
+      const { data } = await http.post<{ reply: string }>("/chat", {
+        message: question,
+      });
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: data.reply,
+        },
+      ]);
+    } catch {
       setMessages((current) => [
         ...current,
         {
           id: crypto.randomUUID(),
           role: "assistant",
           content:
-            "Here is what Scripture says on that topic. Connect the API to get live answers from your RAG pipeline.",
-          verse: {
-            text: "Be still, and know that I am God.",
-            reference: "Psalm 46:10 (NIV)",
-          },
+            "Sorry, I could not reach the server. Make sure the API and Ollama are running.",
         },
       ]);
-    }, 600);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8">
+        {messages.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Ask a question about Scripture to get started.
+          </p>
+        ) : null}
         {messages.map((message) => (
           <div
             key={message.id}
@@ -93,7 +93,7 @@ export function ChatInterface() {
               </div>
             ) : (
               <div className="w-full max-w-3xl space-y-3">
-                <div className="text-sm leading-relaxed text-black">
+                <div className="rounded-2xl rounded-bl-md border border-sacred-gold/20 bg-white px-4 py-3 text-sm leading-relaxed text-black shadow-sm">
                   {message.content}
                 </div>
                 {message.verse ? (
@@ -106,6 +106,12 @@ export function ChatInterface() {
             )}
           </div>
         ))}
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Thinking...
+          </div>
+        ) : null}
         <div ref={messagesEndRef} />
       </div>
 
@@ -117,13 +123,19 @@ export function ChatInterface() {
           value={input}
           onChange={(event) => setInput(event.target.value)}
           placeholder="What does the Bible say about peace?"
+          disabled={isLoading}
           className="h-11 border-deep-parchment/20 bg-white text-black placeholder:text-muted-foreground"
         />
         <Button
           type="submit"
+          disabled={isLoading}
           className="h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto sm:min-w-48"
         >
-          <Search className="size-4" />
+          {isLoading ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Search className="size-4" />
+          )}
           Search Scripture
         </Button>
       </form>
