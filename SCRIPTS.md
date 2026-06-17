@@ -125,6 +125,7 @@ python /app/scripts/<script>.py [options]
 | `ingest_bolls_chapter.py` | Ingest **one full chapter** (all verses in that chapter) |
 | `generate_ingest_queue.py` | Build **catalog + chapter queue** from Bolls `get-books` API |
 | `run_ingest_queue.py` | **Process the queue** chapter-by-chapter (resume-friendly) |
+| `embed_verses.py` | **Embed verses** into pgvector via Ollama (resume-friendly) |
 
 ---
 
@@ -235,15 +236,64 @@ docker exec -it dailybread-api python /app/scripts/run_ingest_queue.py \
 
 ---
 
-## Recommended ingestion flow
+### `embed_verses.py`
+
+Create Ollama embeddings for ingested verses and store them in `verse_embeddings`.
+
+**One book:**
+
+```bash
+docker exec -it dailybread-api python /app/scripts/embed_verses.py \
+  --translation NIV \
+  --book John \
+  --batch-size 32
+```
+
+**All pending verses (full Bible):**
+
+```bash
+docker exec -it dailybread-api python /app/scripts/embed_verses.py \
+  --translation NIV \
+  --batch-size 32
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--translation` | `NIV` | Translation code |
+| `--book` | *(none)* | Optional — limit to one book |
+| `--model` | `nomic-embed-text` | Embedding model (must match `OLLAMA_EMBED_MODEL`) |
+| `--ollama-base-url` | `http://ollama:11434` | Ollama URL (in Docker) |
+| `--batch-size` | `32` | Verses per batch |
+| `--limit` | *(none)* | Max verses to embed this run |
+
+Skips verses that already have embeddings — safe to stop and resume.
+
+---
+
+## API — RAG chat
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/chat` | `POST` | RAG chat — returns `reply` + `sources` |
+
+```bash
+curl -s -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What does the Bible say about peace?"}'
+```
+
+---
+
+## Recommended full pipeline
 
 ```
 1. ingest_bolls_one.py      → test one verse (John 3:16)
 2. ingest_bolls_chapter.py  → test one chapter (John 3)
 3. generate_ingest_queue.py → build queue for a book or full Bible
-4. run_ingest_queue.py      → automate chapter-by-chapter ingestion
-5. (next) embed verses      → Ollama → pgvector
-6. (next) /chat endpoint    → RAG retrieval + answer
+4. run_ingest_queue.py      → ingest chapter-by-chapter into verses
+5. embed_verses.py          → embed verse text into pgvector
+6. POST /chat               → RAG retrieval + Ollama answer
+7. client chat UI           → shows reply + VerseCard sources
 ```
 
 ---
@@ -305,5 +355,5 @@ docker compose up -d db ollama adminer
 ## Related docs
 
 - [`SETUP.md`](SETUP.md) — full developer setup guide
-- [`docs/local-rag-learning-plan.md`](docs/local-rag-learning-plan.md) — build your own RAG chatbot
+- [`RAG.md`](RAG.md) — RAG architecture and phases
 - [`docs/bible-data-ingestion-plan.md`](docs/bible-data-ingestion-plan.md) — ingestion architecture

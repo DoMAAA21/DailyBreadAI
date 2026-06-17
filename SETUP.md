@@ -23,12 +23,32 @@ Bible RAG app: **Next.js** frontend, **FastAPI** backend, **PostgreSQL + pgvecto
 
 ```
 DailyBreadAI/
-├── api/                 # FastAPI backend
-├── client/              # Next.js frontend
-├── docker/              # DB init scripts (pgvector)
-├── docs/                # Architecture & learning guides
-├── docker-compose.yml   # Full stack orchestration
-└── SETUP.md             # This file
+├── api/
+│   ├── app/
+│   │   ├── main.py              # FastAPI app
+│   │   ├── routers/
+│   │   │   ├── health.py        # GET /health
+│   │   │   └── chat.py          # POST /chat (RAG)
+│   │   └── services/
+│   │       ├── ollama.py        # Ollama chat + embed
+│   │       ├── retrieval.py     # pgvector similarity search
+│   │       └── rag.py           # RAG orchestration
+│   ├── scripts/
+│   │   ├── ingest_bolls_one.py
+│   │   ├── ingest_bolls_chapter.py
+│   │   ├── generate_ingest_queue.py
+│   │   ├── run_ingest_queue.py
+│   │   └── embed_verses.py      # Verse text → pgvector
+│   └── data/
+│       ├── catalog/             # Book lists (e.g. niv.json)
+│       └── queues/              # Chapter ingest jobs
+├── client/                      # Next.js chat UI
+├── docker/                      # DB init scripts (pgvector)
+├── docs/                        # Architecture & learning guides
+├── docker-compose.yml
+├── SETUP.md                     # This file
+├── SCRIPTS.md                   # Commands reference
+└── RAG.md                       # RAG implementation guide
 ```
 
 ---
@@ -118,7 +138,16 @@ curl http://localhost:11434/api/chat -d '{
 }'
 ```
 
-Open http://localhost:3000 in your browser for the app UI.
+Open http://localhost:3000 in your browser for the chat UI. Ask a Bible question to test RAG (requires ingested + embedded verses — see below).
+
+```bash
+# Test RAG chat endpoint
+curl -s -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What does the Bible say about peace?"}' | python3 -m json.tool
+```
+
+Response includes `reply` and `sources` (verse text + references).
 
 ---
 
@@ -279,16 +308,21 @@ docker exec dailybread-ollama ollama pull nomic-embed-text
 ## What works today vs. what's next
 
 **Working now:**
-- Docker full stack (db, ollama, api, client)
-- Health endpoint
-- Chat UI (mock responses until RAG is wired)
-- Local Ollama for embeddings + chat
+- Docker full stack (db, ollama, api, client, adminer)
+- Health endpoint (`GET /health`)
+- Bible ingestion from Bolls.life → Postgres (`verses` table)
+- Verse embeddings → pgvector (`verse_embeddings` table)
+- RAG pipeline: embed question → retrieve top verses → Ollama answer
+- `POST /chat` returns `reply` + `sources`
+- Next.js chat UI connected to API (`client/utils/http.ts` + axios)
+- Verse citations shown as `VerseCard` components
 
-**Coming next:**
-- Bible data ingestion → Postgres
-- Verse embeddings → pgvector
-- `/chat` RAG endpoint
-- Frontend connected to real API
+**Coming next (optional improvements):**
+- Chat conversation history (multi-turn)
+- Streaming responses
+- pgvector index for faster search at scale
+- Score thresholds / better greeting detection tuning
+- Additional translations beyond NIV
 
 ---
 
@@ -383,10 +417,85 @@ docker exec -it dailybread-api python /app/scripts/run_ingest_queue.py \
 
 The queue file is updated after each chapter, so you can stop and resume later.
 
-Once that works, the next step is **embedding** (call Ollama embeddings for the stored verse text) and then wiring a `/chat` endpoint that retrieves top-k vectors.
+### 7. Embed verses (required for RAG search)
+
+**Ingested** and **embedded** are two different steps:
+
+| Step | What it does | Table |
+|------|----------------|-------|
+| **Ingest** | Saves verse text from Bolls | `verses` |
+| **Embed** | Converts verse text to vectors for semantic search | `verse_embeddings` |
+
+RAG only searches verses that are **both** ingested and embedded.
+
+**Embed one book (e.g. John):**
+
+```bash
+docker exec -it dailybread-api python /app/scripts/embed_verses.py \
+  --translation NIV \
+  --book John \
+  --batch-size 32
+```
+
+**Embed all ingested verses not yet embedded (full Bible):**
+
+```bash
+docker exec -it dailybread-api python /app/scripts/embed_verses.py \
+  --translation NIV \
+  --batch-size 32
+```
+
+The script skips verses that already have embeddings — safe to stop and resume.
+
+**Check progress:**
+
+```bash
+# Total ingested
+docker exec dailybread-db psql -U postgres -d dailybread -c \
+  "SELECT COUNT(*) FROM verses WHERE translation_code = 'NIV';"
+
+# Total embedded
+docker exec dailybread-db psql -U postgres -d dailybread -c \
+  "SELECT COUNT(*) FROM verse_embeddings WHERE model = 'nomic-embed-text';"
+
+# Still pending
+docker exec dailybread-db psql -U postgres -d dailybread -c \
+  "SELECT COUNT(*) FROM verses v
+   LEFT JOIN verse_embeddings e ON e.verse_id = v.id AND e.model = 'nomic-embed-text'
+   WHERE v.translation_code = 'NIV' AND e.verse_id IS NULL;"
+```
+
+When pending is `0`, all ingested verses are embedded and RAG searches the full corpus.
+
+---
+
+## RAG chat flow
+
+When a user asks a Bible question in the UI:
+
+1. Frontend sends `POST /chat` with `{ "message": "..." }`
+2. API embeds the question via Ollama (`nomic-embed-text`)
+3. pgvector finds the top 5 most similar verses
+4. Ollama (`llama3.2`) generates an answer using only those verses
+5. API returns `{ "reply": "...", "sources": [{ "text", "reference" }] }`
+6. Frontend shows the reply + `VerseCard` for each source
+
+Casual greetings (e.g. "Hi, how are you?") skip retrieval and use the friendly persona only.
+
+**Key API files:**
+- `api/app/services/ollama.py` — `chat()`, `embed()`
+- `api/app/services/retrieval.py` — `search_verses()`
+- `api/app/services/rag.py` — `answer_question()`
+- `api/app/routers/chat.py` — `POST /chat`
+
+**Key client files:**
+- `client/utils/http.ts` — axios instance (`NEXT_PUBLIC_API_URL`)
+- `client/app/(home)/_components/chat-interface.tsx` — chat UI
 
 See also:
-- [`docs/local-rag-learning-plan.md`](docs/local-rag-learning-plan.md) — how to build your own RAG chatbot
+- [`RAG.md`](RAG.md) — full RAG architecture and phases
+- [`SCRIPTS.md`](SCRIPTS.md) — all commands and scripts reference
+- [`docs/local-rag-learning-plan.md`](docs/local-rag-learning-plan.md) — conceptual learning path
 - [`docs/bible-data-ingestion-plan.md`](docs/bible-data-ingestion-plan.md) — Bible data pipeline
 
 ---
@@ -435,4 +544,17 @@ Open http://localhost:8080 and log in with:
 | Password | `postgres` |
 | Database | `dailybread` |
 
-Browse the `verses` table to confirm your John 3 data.
+Browse the `verses` and `verse_embeddings` tables to confirm your data.
+
+**Useful queries:**
+
+```sql
+-- Verses per book
+SELECT b.name, COUNT(*) FROM verses v
+JOIN books b ON b.book_num = v.book_num
+WHERE v.translation_code = 'NIV'
+GROUP BY b.name ORDER BY b.name;
+
+-- Embedding count
+SELECT COUNT(*) FROM verse_embeddings;
+```
