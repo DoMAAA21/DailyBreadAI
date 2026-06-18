@@ -1,8 +1,8 @@
-import re
 from dataclasses import dataclass
 
 from app.services.ollama import chat, chat_with_messages
 from app.services.retrieval import RetrievedVerse, search_verses
+from app.services.retrieval_planner import plan_retrieval
 
 RAG_SYSTEM_PROMPT = """You are Daily Bread AI — a warm, friendly Bible companion.
 Answer using ONLY the verses provided below. Do not invent verses or references.
@@ -12,44 +12,12 @@ Never say you are an AI, language model, or bot."""
 
 MIN_RELEVANCE_SCORE = 0.45
 
-SUBSTANTIVE_PHRASES = (
-    "what does",
-    "what is",
-    "what are",
-    "who is",
-    "who was",
-    "why does",
-    "tell me about",
-    "explain",
-    "bible",
-    "scripture",
-    "verse",
-)
-
-GREETING_SIGNALS = (
-    r"\bhow are you\b",
-    r"^h+i+\b",
-    r"^hello\b",
-    r"^hey\b",
-    r"\bgood (morning|afternoon|evening)\b",
-    r"^what'?s up\b",
-    r"^sup\b",
-)
-
 
 @dataclass
 class RagResult:
     reply: str
     sources: list[RetrievedVerse]
-
-
-def is_greeting(message: str) -> bool:
-    text = message.strip().lower()
-    if len(text) > 100:
-        return False
-    if any(phrase in text for phrase in SUBSTANTIVE_PHRASES):
-        return False
-    return any(re.search(pattern, text) for pattern in GREETING_SIGNALS)
+    search_query: str | None = None
 
 
 def format_verses_for_prompt(verses: list[RetrievedVerse]) -> str:
@@ -60,17 +28,23 @@ async def answer_question(
     question: str,
     *,
     translation: str = "NIV",
-    limit: int = 5,
 ) -> RagResult:
     cleaned = question.strip()
     if not cleaned:
         return RagResult(reply="", sources=[])
 
-    if is_greeting(cleaned):
+    plan = await plan_retrieval(cleaned)
+
+    if not plan.use_rag:
         reply = await chat(cleaned)
         return RagResult(reply=reply, sources=[])
 
-    verses = await search_verses(cleaned, translation=translation, limit=limit)
+    verses = await search_verses(
+        plan.search_query,
+        translation=translation,
+        limit=plan.verse_limit,
+        book_name=plan.book,
+    )
 
     if not verses:
         return RagResult(
@@ -79,6 +53,7 @@ async def answer_question(
                 "Try asking again after verses are embedded."
             ),
             sources=[],
+            search_query=plan.search_query,
         )
 
     if verses[0].score < MIN_RELEVANCE_SCORE:
@@ -88,6 +63,7 @@ async def answer_question(
                 "Try rephrasing your question, or ask about a specific topic like peace, love, or faith."
             ),
             sources=[],
+            search_query=plan.search_query,
         )
 
     context = format_verses_for_prompt(verses)
@@ -100,4 +76,4 @@ async def answer_question(
     ]
 
     reply = await chat_with_messages(messages)
-    return RagResult(reply=reply, sources=verses)
+    return RagResult(reply=reply, sources=verses, search_query=plan.search_query)

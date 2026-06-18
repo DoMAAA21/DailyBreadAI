@@ -32,6 +32,7 @@ def _search_verses_sync(
     translation: str,
     model: str,
     limit: int,
+    book_name: str | None = None,
 ) -> list[RetrievedVerse]:
     vector_literal = _to_vector_literal(query_vector)
 
@@ -53,10 +54,19 @@ def _search_verses_sync(
                 JOIN books b ON b.book_num = v.book_num
                 WHERE e.model = %s
                   AND v.translation_code = %s
+                  AND (%s IS NULL OR b.name = %s)
                 ORDER BY e.embedding <=> %s::vector
                 LIMIT %s
                 """,
-                (vector_literal, model, translation, vector_literal, limit),
+                (
+                    vector_literal,
+                    model,
+                    translation,
+                    book_name,
+                    book_name,
+                    vector_literal,
+                    limit,
+                ),
             )
             rows = cur.fetchall()
     finally:
@@ -82,6 +92,7 @@ async def search_verses(
     translation: str = "NIV",
     model: str = OLLAMA_EMBED_MODEL,
     limit: int = 5,
+    book_name: str | None = None,
 ) -> list[RetrievedVerse]:
     cleaned = question.strip()
     if not cleaned:
@@ -98,4 +109,5 @@ async def search_verses(
         translation=translation,
         model=model,
         limit=limit,
+        book_name=book_name,
     )
