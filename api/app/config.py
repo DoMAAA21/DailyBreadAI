@@ -12,7 +12,7 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:postgres@localhost:5432/dailybread",
 )
 
-# Local AI via Ollama — no OpenAI key required
+# Local AI via Ollama 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_CHAT_MODEL = os.getenv("OLLAMA_CHAT_MODEL", "llama3.2")
 OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
