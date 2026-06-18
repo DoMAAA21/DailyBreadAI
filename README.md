@@ -1,111 +1,171 @@
 # DailyBreadAI
 
-A Bible-focused Retrieval-Augmented Generation (RAG) application. Ask questions about Scripture and get answers grounded in retrieved passages — not hallucinated verses.
+A Bible-focused **Retrieval-Augmented Generation (RAG)** app. Ask questions about Scripture and get answers grounded in retrieved verses — not hallucinated text.
 
-This is the first project in a series exploring RAG patterns. Future apps will build on the same core ideas with different domains and data.
+Runs **fully local** with Docker, PostgreSQL + pgvector, and **Ollama** (no OpenAI API key required).
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| **API** | [FastAPI](https://fastapi.tiangolo.com/) |
-| **Database** | [PostgreSQL](https://www.postgresql.org/) |
-| **Vector search** | [pgvector](https://github.com/pgvector/pgvector) |
 | **Frontend** | [Next.js](https://nextjs.org/) |
+| **API** | [FastAPI](https://fastapi.tiangolo.com/) |
+| **Database** | [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) |
+| **Embeddings** | Ollama `nomic-embed-text` |
+| **Chat LLM** | Ollama `llama3.2` |
 
 ## How It Works
-
-1. **Ingest** — Bible text is chunked and embedded into vector representations.
-2. **Store** — Chunks and embeddings live in PostgreSQL with pgvector for similarity search.
-3. **Retrieve** — A user query is embedded and matched against the most relevant passages.
-4. **Generate** — An LLM answers using only the retrieved context, keeping responses faithful to Scripture.
 
 ```
 User question
     │
     ▼
-Next.js frontend ──► FastAPI backend
-                         │
-                         ├── Embed query
-                         ├── pgvector similarity search (PostgreSQL)
-                         └── LLM response with cited passages
+Next.js chat UI ──► POST /chat
+                        │
+                        ├── LLM plans retrieval (search query, book filter, intent)
+                        ├── Embed search query (Ollama)
+                        ├── pgvector similarity search (PostgreSQL)
+                        ├── LLM answer using retrieved verses only
+                        └── Reply + verse citations (VerseCard)
 ```
+
+1. **Ingest** — Bible text from [Bolls.life](https://bolls.life) → `verses` table
+2. **Embed** — Each verse → vector in `verse_embeddings` (pgvector)
+3. **Retrieve** — LLM plans the search; pgvector finds the closest verses
+4. **Generate** — LLM answers using only retrieved context + citations
+
+## Quick Start (Docker)
+
+```bash
+git clone <repo-url>
+cd DailyBreadAI
+docker compose up --build -d
+
+# Pull models (first time only)
+docker exec dailybread-ollama ollama pull llama3.2
+docker exec dailybread-ollama ollama pull nomic-embed-text
+```
+
+| Service | URL |
+|---------|-----|
+| Chat UI | http://localhost:3000 |
+| API | http://localhost:8000 |
+| API docs | http://localhost:8000/docs |
+| Adminer (DB) | http://localhost:8080 |
+
+Test the chat API:
+
+```bash
+curl -s -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What does the Bible say about peace?"}'
+```
+
+Full setup, ingestion, and embedding instructions: **[SETUP.md](SETUP.md)**
 
 ## Project Structure
 
 ```
 DailyBreadAI/
-├── api/          # FastAPI backend (RAG pipeline, embeddings, search)
-├── web/          # Next.js frontend (chat UI, passage display)
-└── README.md
+├── api/
+│   ├── app/
+│   │   ├── routers/          # /health, /chat
+│   │   └── services/
+│   │       ├── ollama.py           # Chat + embeddings
+│   │       ├── retrieval_planner.py # LLM plans search (JSON)
+│   │       ├── retrieval.py        # pgvector search
+│   │       └── rag.py              # RAG orchestration
+│   └── scripts/
+│       ├── ingest_bolls_*.py       # Bible text ingestion
+│       ├── generate_ingest_queue.py
+│       ├── run_ingest_queue.py
+│       └── embed_verses.py         # Verse → vector
+├── client/                   # Next.js chat UI
+├── docker/                   # DB schema + pgvector init
+├── docker-compose.yml
+├── SETUP.md                  # Developer setup guide
+├── SCRIPTS.md                # Commands reference
+└── RAG.md                    # RAG architecture & improvements
 ```
 
-## Prerequisites
+## Data Pipeline
 
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL 15+ with the [pgvector extension](https://github.com/pgvector/pgvector#installation)
-
-## Getting Started
-
-### 1. PostgreSQL + pgvector
+| Step | Command | Result |
+|------|---------|--------|
+| Ingest | `run_ingest_queue.py` | Verse text in `verses` |
+| Embed | `embed_verses.py` | Vectors in `verse_embeddings` |
+| Chat | `POST /chat` | RAG answers with sources |
 
 ```bash
-# macOS (Homebrew)
-brew install postgresql@15
-brew install pgvector
+# Ingest full NIV Bible (inside API container)
+python /app/scripts/generate_ingest_queue.py --translation NIV
+python /app/scripts/run_ingest_queue.py --queue /app/data/queues/niv-all.json
 
-# Create database
-createdb dailybread
-psql dailybread -c "CREATE EXTENSION vector;"
+# Embed all ingested verses (skips already embedded)
+python /app/scripts/embed_verses.py --translation NIV --batch-size 32
 ```
 
-### 2. API (FastAPI)
-
-```bash
-cd api
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# Set environment variables (example)
-export DATABASE_URL="postgresql://user:password@localhost:5432/dailybread"
-export OPENAI_API_KEY="your-key-here"
-
-uvicorn main:app --reload
-
-The API will be available at `http://localhost:8000`.
-
-### 3. Frontend (Next.js)
-
-```bash
-cd web
-npm install
-
-# Point at the local API
-export NEXT_PUBLIC_API_URL="http://localhost:8000"
-
-npm run dev
-```
-
-The app will be available at `http://localhost:3000`.
+See **[SCRIPTS.md](SCRIPTS.md)** for all commands.
 
 ## Environment Variables
 
-| Variable | Where | Description |
-|----------|-------|-------------|
-| `DATABASE_URL` | API | PostgreSQL connection string |
-| `OPENAI_API_KEY` | API | API key for embeddings and generation |
-| `NEXT_PUBLIC_API_URL` | Web | Base URL of the FastAPI backend |
+| Variable | Where | Default | Description |
+|----------|-------|---------|-------------|
+| `DATABASE_URL` | API | `postgresql://...@db:5432/dailybread` | Postgres connection |
+| `OLLAMA_BASE_URL` | API | `http://ollama:11434` | Ollama URL |
+| `OLLAMA_CHAT_MODEL` | API | `llama3.2` | Chat model |
+| `OLLAMA_EMBED_MODEL` | API | `nomic-embed-text` | Embedding model |
+| `NEXT_PUBLIC_API_URL` | Client | `http://localhost:8000` | API URL for browser |
 
-## Roadmap
+Copy `api/.env.example` → `api/.env` for local (non-Docker) development.
 
-- [ ] Bible text ingestion and chunking pipeline
-- [ ] Embedding generation and pgvector storage
-- [ ] Semantic search API endpoint
-- [ ] RAG chat endpoint with source citations
-- [ ] Next.js chat interface
-- [ ] Passage reference linking (book, chapter, verse)
+## API
+
+### `POST /chat`
+
+```json
+{ "message": "What is Matthew all about?" }
+```
+
+Response:
+
+```json
+{
+  "reply": "...",
+  "sources": [
+    { "text": "...", "reference": "Matthew 5:1 (NIV)" }
+  ]
+}
+```
+
+### `GET /health`
+
+```json
+{ "status": "ok" }
+```
+
+## Documentation
+
+| Doc | Contents |
+|-----|----------|
+| [SETUP.md](SETUP.md) | Full dev setup, Docker, ingestion, embedding |
+| [SCRIPTS.md](SCRIPTS.md) | All scripts and commands |
+| [RAG.md](RAG.md) | RAG phases, architecture, accuracy improvements |
+| [docs/local-rag-learning-plan.md](docs/local-rag-learning-plan.md) | Learning path |
+| [docs/bible-data-ingestion-plan.md](docs/bible-data-ingestion-plan.md) | Ingestion design |
+
+## Status
+
+- [x] Docker full stack (db, ollama, api, client, adminer)
+- [x] NIV Bible ingestion (Bolls.life → Postgres)
+- [x] Verse embeddings (Ollama → pgvector)
+- [x] LLM retrieval planner (intelligent search)
+- [x] RAG chat endpoint with source citations
+- [x] Next.js chat UI with VerseCard
+- [ ] Streaming responses
+- [ ] Chat conversation history
+- [ ] Richer embed text (book + reference prefix)
+- [ ] Direct verse reference lookup (`John 3:16`)
 
 ## License
 
