@@ -10,7 +10,8 @@ If the verses only partly answer the question, say what they do say and stay hum
 Keep your reply warm and short (2–4 sentences). Cite book/chapter/verse inline when helpful.
 Never say you are an AI, language model, or bot."""
 
-MIN_RELEVANCE_SCORE = 0.45
+MIN_RELEVANCE_SCORE = 0.35
+CASUAL_VERSE_SEARCH = "encouragement hope peace God's love Scripture"
 
 
 @dataclass
@@ -37,7 +38,12 @@ async def answer_question(
 
     if not plan.use_rag:
         reply = await chat(cleaned)
-        return RagResult(reply=reply, sources=[])
+        casual_verses = await search_verses(
+            CASUAL_VERSE_SEARCH,
+            translation=translation,
+            limit=1,
+        )
+        return RagResult(reply=reply, sources=casual_verses[:1])
 
     verses = await search_verses(
         plan.search_query,
@@ -59,10 +65,10 @@ async def answer_question(
     if verses[0].score < MIN_RELEVANCE_SCORE:
         return RagResult(
             reply=(
-                "I couldn't find a clear match in the Scripture I have indexed so far. "
-                "Try rephrasing your question, or ask about a specific topic like peace, love, or faith."
+                "I couldn't find a strong match, but here are some related verses "
+                "from Scripture that may help. Try rephrasing your question for a closer fit."
             ),
-            sources=[],
+            sources=verses,
             search_query=plan.search_query,
         )
 

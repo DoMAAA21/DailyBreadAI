@@ -102,9 +102,9 @@ export function ChatInterface() {
                 <div className="rounded-2xl rounded-bl-md border border-sacred-gold/20 bg-white px-4 py-3 text-sm leading-relaxed text-black shadow-sm">
                   {message.content}
                 </div>
-                {message.sources?.map((source) => (
+                {message.sources?.slice(0, 3).map((source, index) => (
                   <VerseCard
-                    key={source.reference}
+                    key={`${source.reference}-${index}`}
                     text={source.text}
                     reference={source.reference}
                   />

@@ -48,7 +48,7 @@ def _build_planner_prompt() -> str:
 Decide how to search Scripture for the user's message.
 
 JSON fields:
-- use_rag (boolean): false for greetings or casual chat; true when Scripture search is needed
+- use_rag (boolean): false ONLY for pure greetings/small talk with no Bible question; true for anything asking about Scripture, topics, books, or faith
 - search_query (string): short keyword query for semantic verse search when use_rag is true; otherwise ""
 - book (string|null): limit search to one book when the question focuses on a specific book; must be from the catalog or null
 - verse_limit (number): 5 for topical questions, 8 for book-wide questions
