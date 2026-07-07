@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import random
 
 from app.services.ollama import chat, chat_with_messages
 from app.services.retrieval import RetrievedVerse, search_verses
@@ -11,7 +12,17 @@ Keep your reply warm and short (2–4 sentences). Cite book/chapter/verse inline
 Never say you are an AI, language model, or bot."""
 
 MIN_RELEVANCE_SCORE = 0.35
-CASUAL_VERSE_SEARCH = "encouragement hope peace God's love Scripture"
+
+CASUAL_VERSE_TOPICS = (
+    "encouragement hope strength courage",
+    "God's love faithfulness mercy",
+    "peace comfort rest stillness",
+    "joy gratitude thanksgiving praise",
+    "wisdom guidance light path",
+    "faith trust refuge shelter",
+    "healing renewal restoration",
+    "forgiveness grace compassion",
+)
 
 
 @dataclass
@@ -39,7 +50,7 @@ async def answer_question(
     if not plan.use_rag:
         reply = await chat(cleaned)
         casual_verses = await search_verses(
-            CASUAL_VERSE_SEARCH,
+            random.choice(CASUAL_VERSE_TOPICS),
             translation=translation,
             limit=1,
         )

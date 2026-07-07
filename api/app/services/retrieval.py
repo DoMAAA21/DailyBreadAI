@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import random
 
 import psycopg2
 
@@ -24,6 +25,28 @@ class RetrievedVerse:
 
 def _to_vector_literal(values: list[float]) -> str:
     return "[" + ",".join(f"{float(v):.8f}" for v in values) + "]"
+
+
+def diversify_verses(candidates: list[RetrievedVerse], limit: int) -> list[RetrievedVerse]:
+    """Pick relevant verses from different chapters, with light randomness among top matches."""
+    if not candidates:
+        return []
+
+    best_per_chapter: dict[tuple[str, int], RetrievedVerse] = {}
+    for verse in candidates:
+        key = (verse.book_name, verse.chapter)
+        current = best_per_chapter.get(key)
+        if current is None or verse.score > current.score:
+            best_per_chapter[key] = verse
+
+    pool = sorted(best_per_chapter.values(), key=lambda v: v.score, reverse=True)
+    top_score = pool[0].score
+    close_matches = [v for v in pool if v.score >= top_score - 0.08]
+    remaining = [v for v in pool if v.score < top_score - 0.08]
+
+    random.shuffle(close_matches)
+    ordered = close_matches + remaining
+    return ordered[:limit]
 
 
 def _search_verses_sync(
@@ -93,21 +116,27 @@ async def search_verses(
     model: str = OLLAMA_EMBED_MODEL,
     limit: int = 5,
     book_name: str | None = None,
+    diversify: bool = True,
 ) -> list[RetrievedVerse]:
     cleaned = question.strip()
     if not cleaned:
         return []
 
     query_vector = await embed(cleaned)
+    candidate_limit = max(limit * 5, 25) if diversify else limit
 
     # Run DB query in a thread to keep async handlers responsive.
     import asyncio
 
-    return await asyncio.to_thread(
+    candidates = await asyncio.to_thread(
         _search_verses_sync,
         query_vector,
         translation=translation,
         model=model,
-        limit=limit,
+        limit=candidate_limit,
         book_name=book_name,
     )
+
+    if diversify:
+        return diversify_verses(candidates, limit)
+    return candidates[:limit]
